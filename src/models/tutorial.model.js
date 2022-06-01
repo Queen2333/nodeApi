@@ -25,7 +25,7 @@ Tutorial.create = (newTutorial, result) => {
 
 Tutorial.findByKeyAndTime = (params, result) => {
   const {key, timestamp} = params;
-  console.log(key, timestamp, 'params');
+  // console.log(key, timestamp, 'params');
 
   sql.query(`SELECT * FROM tutorials WHERE tutorial_key = '${key}'`, (err, res) => {
     if (err) {
@@ -33,53 +33,56 @@ Tutorial.findByKeyAndTime = (params, result) => {
       result(err, null);
       return;
     }
-
-    if (res.length) {
-      if (res.length === 1) {
-        if (timestamp) {
-          result(null, Number(timestamp) >= Number(res[0].timestamp) ? {value: res[0].value} : {message: 'There are no data'});
-        } else {
-          result(null, {value: res[0].value});
-        }
-        return;
-      }
-      if (res.length > 1) {
-        const latest = res.reduce((pre, curv) => Number(pre.timestamp) < Number(curv.timestamp) ? curv : pre)
-        const earliest = res.reduce((pre, curv) => Number(pre.timestamp) > Number(curv.timestamp) ? curv : pre)
-        if (timestamp) {
-          if (Number(timestamp) > Number(latest.timestamp)) {
-            result(null, {value: latest.value})
-            return
-          }
-          if (Number(timestamp) < Number(earliest.timestamp)) {
-            result(null, {message: 'There are no data'})
-            return
-          }
-          let target = {}
-          let l = 0, r = res.length - 1;
-          while(l <= r) {
-            let mid = Math.floor((r + l) / 2)
-            if (Number(timestamp) === Number(res[mid].timestamp)) {
-              target = res[mid]
-              result(null, {value: target.value})
-              return
-            } else if (Number(timestamp) < Number(res[mid].timestamp)) {
-              r = mid - 1
-            } else {
-              l = mid + 1
-            }
-          }
-          result(null, {value: res[l - 1].value})
-        } else {
-          result(null, {value: latest.value})
-        }
-        return
-      }
+    // not found Tutorial with the key
+    if (!res.length) {
+      result({}, null);
       return;
     }
+    // Only one Tutorial with the key
+    if (res.length === 1) {
+      if (!timestamp) {
+        result(null, {value: res[0].value});
+        return;
+      }
+      result(null, Number(timestamp) >= Number(res[0].timestamp) ? {value: res[0].value} : {message: 'There are no data'});
+      return;
+    }
+    // more than one Tutorial with the key
+    if (res.length > 1) {
+      const latest = res.reduce((pre, curv) => Number(pre.timestamp) < Number(curv.timestamp) ? curv : pre); // the latest Tutorial with the key
+      const earliest = res.reduce((pre, curv) => Number(pre.timestamp) > Number(curv.timestamp) ? curv : pre); // the earliest Tutorial with the key
 
-    // not found Tutorial with the key
-    result({}, null);
+      if (!timestamp) {
+        result(null, {value: latest.value});
+        return;
+      }
+
+      if (Number(timestamp) > Number(latest.timestamp)) {
+        result(null, {value: latest.value});
+        return;
+      }
+
+      if (Number(timestamp) < Number(earliest.timestamp)) {
+        result(null, {message: 'There are no data'});
+        return;
+      }
+
+      // Find the mostrecent value comparedto the timestamp with dichotomy
+      let l = 0, r = res.length - 1;
+      while(l <= r) {
+        let mid = Math.floor((r + l) / 2);
+        if (Number(timestamp) === Number(res[mid].timestamp)) {
+          result(null, {value: res[mid].value});
+          return;
+        } else if (Number(timestamp) < Number(res[mid].timestamp)) {
+          r = mid - 1
+        } else {
+          l = mid + 1
+        }
+      }
+      result(null, {value: res[l - 1].value})
+    }
+    
   });
 };
 
