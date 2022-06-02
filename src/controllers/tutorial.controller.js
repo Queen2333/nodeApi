@@ -9,6 +9,7 @@ exports.create = (req, res) => {
     res.status(400).send({
       message: "content can not be empty!"
     });
+    return;
   }
 
   // Create a Tutorial
